@@ -1,0 +1,176 @@
+---
+title: "A1-R Análise de dados com R"
+author: "Luis Gustavo Andrade."
+date: "2023-04-15"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Trabalho de R por Luis Gustavo Ribeiro Andrade
+
+Este trabalho feito por mim, Luis Gustavo Ribeiro Andrade, se trata de uma análise que eu fiz em um curso para análise em python em uma plataforma online e decidi adaptar a sua apresentação para fazer em R.
+A base de dados diz sobre as gorjetas (tips) em um dado restaurante nos EUA comparando em relação ao valor total da conta, do dia da semana, do horário, se houve ou não sobremesa e do número de pessoas na mesa.
+
+##Instalando as bibliotecas que será necessária para a execução da tarefa.
+Nessa parte iremos carregar as bibliotecas que utilizaremos ao longo das tarefas.
+
+```{r cars}
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggridges)
+```
+
+## Carregando a base de dados.
+
+Agora iremos fazer um carregamento da base de dados.
+Inicialmente pegarei o caminho que o arquivo aberto está armazenado, visto que o programa passará para a máquina do professor e o path será alterado.
+Então em um primeiro momento vou jogar o path em uma variável chamada path, e logo em seguida carregarei a base de dados que será enviada pelo professor na mesma pasta que a análise, ou seja, o path será o mesmo, mas com alteração do nome do arquivo.
+Para isso é possível ser feito uma concatenação de strings.
+Após isso carregarei a base de dados e colocarei em dados e pedirei pra exibir os dados.
+
+```{r}
+path <- getwd()
+dados <- read_csv(paste0(path, "/tips.csv"))
+head(dados, n=5)
+```
+
+Agora vamos fazer um tratamento nos dados, verificando se há dados faltantes.
+
+```{r}
+faltantes <- colSums(is.na(dados))
+faltantes
+```
+
+Conseguimos ver aqui que todas as informações estão completas e não precisamos fazer nenhum tratamento em relação a dados faltantes, então veremos mais sobre as colunas.
+
+```{r}
+rm(faltantes)
+str(dados)
+```
+
+Com a função str() conseguimos ter mais detalhes sobre as colunas e quais os tipos de dados estão contidas nas colunas.
+Com isso, podemos analisar se não tem nenhum número que está sendo lido como uma string ou como um "col_character()".
+Como observado, todas as colunas estão no formato correto para sua análise.
+O total_bill, tip, size estão no formato de números double e o restante de strings.
+
+Podemos perceber que a base de dados está em inglês, para fazer o tratamento de dados completo, vou fazer a tradução dos itens, tanto do nome das colunas, quanto dos itens dentro.
+
+Primeiro as colunas.
+
+```{r}
+colnames(dados)<- c("total_da_conta", "gorjeta", "sobremesa", "dia_semana", "refeicao", "pessoas")
+dados
+```
+
+Agora os valores das colunas.
+Para isso, começaremos a verificar quais valores são dados em cada coluna, para isso, usaremos o unique().
+
+```{r}
+unique(dados$sobremesa)
+unique(dados$dia_semana)
+unique(dados$refeicao)
+```
+
+Agora começamos a alterar os valores, usaremos a biblioteca dplyr
+
+```{r}
+dados <- dados %>%
+  mutate(sobremesa = ifelse(sobremesa =="No", "Não","Sim"))
+dados <- dados %>%
+  mutate(refeicao = ifelse(refeicao == "Dinner", "Jantar","Almoço"))
+dados <- dados %>%
+  mutate(dia_semana = case_when(
+    dia_semana == "Sun" ~ "Domingo",
+    dia_semana == "Sat" ~ "Sábado",
+    dia_semana == "Thur" ~"Quinta",
+    dia_semana == "Fri" ~"Sexta"
+  ))
+head(dados, n=5)
+```
+
+Agora com os dados tratados, podemos começar a fazer o restante da análise.
+##Os gráficos.
+Vamos começar com um gráfico que analisa o valor da gorjeta em relação ao valor total da conta.
+
+```{r}
+plot(dados$total_da_conta, dados$gorjeta, type = "p", ylab = "Gorjeta", xlab = "Valor da conta", cex = .8, col = "blue", pch = 19)
+```
+
+Podemos notar que quanto maior o valor da conta, maior é a gorjeta, mas que existe também algumas contas com valor alto que a gorjeta é baixa.
+Com isso, vamos fazer um gráfico em relação a porcentagem.
+
+```{r}
+dados <- dados %>%
+  mutate(proporcao = gorjeta/total_da_conta)
+plot(dados$total_da_conta, dados$proporcao, type= "p", xlab = "Valor da conta", ylab= "Porcentagem", col = "blue", pch = 19)
+```
+
+Com o gráfico acima, podemos perceber que as contas mais baixas arrecadam uma gorjeta superior em proporção do valor da conta do que as mais caras.
+
+Analisando o gráfico acima, fiquei em dúvida se existe alguma correlação entre sobremesas e gorjetas.
+
+```{r}
+ggplot(dados, aes(x = sobremesa, y = gorjeta, fill = sobremesa)) +
+  geom_point(position = position_jitter(width = 0.2, height = 0), alpha = 0.5) +
+  labs(title = "Sobremesa afetando na gorjeta",
+       x = "Pediu sobremesa?",
+       y = "Gorjeta") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(dados, aes(x = sobremesa, y = gorjeta, fill = sobremesa)) +
+  geom_boxplot() + 
+  labs(title = "Sobremesa afetando na gorjeta",
+       x = "Pediu sobremesa?",
+       y = "Gorjeta") +
+  theme_minimal()
+```
+
+Podemos observar que pessoas que pediram sobremesa doaram um valor maior de gorjetas, não muito maior, mas um pouco maior em relação as médias e valores máximos.
+Então tentamos separar.
+
+```{r}
+ggplot(dados, aes(x=total_da_conta, y=gorjeta, color = sobremesa))+ 
+  geom_point()
+
+```
+
+Com esses três gráficos, podemos perceber que as pessoas que pediram sobremesa ficam mais doces com a vida e oferecem mais gorjetas.
+
+Agora analisaremos o valor da gorjeta em relação ao número de pessoas da mesa.
+
+```{r}
+ggplot(dados, aes(x = pessoas, y = gorjeta)) +
+  geom_point(position = position_jitter(width = 0.2, height = 0), alpha = 0.5) +
+  labs(title = "Quantidade de afetando na gorjeta",
+       x = "Tamanho da mesa",
+       y = "Gorjeta") +
+  theme_minimal()
+```
+
+O gráfico acima não consegue nos demonstrar se há uma correlação entre os valores de gorjeta e o número de pessoas.
+Apenas que temos mais número de análises em mesas com duas e três pessoas.
+
+## Conclusão
+
+Com esses dados, acredito que tenha conseguido fazer um bom trabalho e apresentado algumas análises gráficas.
+Como dito anteriormente, eu já havia feito esse projeto em python inicialmente.
+Adaptei algumas coisas pra fazer em R, adicionei mais alguns gráficos, retirei outros.
+Para acessar o meu trabalho em python, estou disponibilizando o link [aqui.](https://colab.research.google.com/drive/18HFX-t387mC8s1nd548umnmVCLL_wSmQ?usp=sharing)
+
+Durante o projeto, eu também precisei procurar sobre algumas funções do ggplot2 e do dplyr, para isso, eu utilizei a biblioteca das mesmas disponíveis abaixo.
+
+[dplyr](https://livro.curso-r.com/7-2-dplyr.html)
+
+[ggplot2](https://livro.curso-r.com/8-1-o-pacote-ggplot2.html)
+
+Durante a execução, tive um erro ao fazer o relplot que analisa a gorjeta por conta, dividido entre o pedido de sobremesa ou não.
+Ao deparar com esse erro, pesquisei no chatgpt que me recomendou a usar a biblioteca *ggridges*, ao adicionar no código, funcionou normalmente.
